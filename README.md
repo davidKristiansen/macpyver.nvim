@@ -10,8 +10,10 @@ Created by David Kristiansen.
 
 - Run the entire YAML workflow from your current buffer, in a split terminal
 - Instantly run the specific YAML case (list item) under your cursor
-- Automatically reuses or opens a split terminal as needed
-- Quick keymaps for closing or interrupting jobs in the Macpyver terminal
+- Reuses or opens a split terminal as needed, respecting your split/focus preferences
+- Choose vertical or horizontal splits (follows your \:set splitright / \:set splitbelow)
+- Control focus behavior when running jobs
+- Keymaps for closing or interrupting jobs in the Macpyver terminal
 
 ---
 
@@ -77,7 +79,10 @@ require("macpyver").setup({
   config_path    = "/path/to/config.yaml",
   resources_path = "/path/to/resources.yaml",
   output_root    = "/tmp/output/",
-  min_width      = 50,
+  split_type     = "vertical",   -- or "horizontal" (follows your splitright/splitbelow)
+  min_width      = 50,           -- minimum width for vertical splits
+  min_height     = 12,           -- minimum height for horizontal splits
+  focus_on_run   = true,         -- whether to move focus to the Macpyver split (default: true)
   auto_close     = false,
   autoscroll     = true,
   keymaps        = {
@@ -87,7 +92,12 @@ require("macpyver").setup({
 })
 ```
 
-All fields are optional (but you'll want to set the paths).
+- split_type: "vertical" or "horizontal". Lets your own splitright and splitbelow decide which side.
+- min_width: Minimum width of split for "vertical".
+- min_height: Minimum height of split for "horizontal".
+- focus_on_run: If false, your cursor stays in your working buffer when running Macpyver.
+
+All fields are optional, but you'll want to set the paths.
 
 ---
 
