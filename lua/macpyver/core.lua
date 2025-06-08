@@ -8,9 +8,12 @@ M.opts = {
   config_path    = "",
   resources_path = "",
   output_root    = "",
-  min_width      = 50,
+  min_width      = 90,
+  min_height     = 30,
   auto_close     = false,
   autoscroll     = true,
+  focus_on_run   = true,
+  split_type     = "vertical",
   keymaps        = { close = "q", ctrlc = "c" },
 }
 

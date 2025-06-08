@@ -7,7 +7,6 @@ local core = require("macpyver.core")
 
 local Runner = {}
 
--- Find the macpyver terminal window if open
 function Runner.get_term_win()
   local bufnr = core.state.term_bufnr
   if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
@@ -20,31 +19,56 @@ function Runner.get_term_win()
   return nil
 end
 
--- Open a new terminal (or reuse split), always providing a fresh terminal for a new job
 function Runner.open_term(cmd, opts, win)
+  local api = vim.api
+  local prev_win = api.nvim_get_current_win()
+
   if win then
-    vim.api.nvim_set_current_win(win)
-    vim.cmd("enew") -- new buffer in split
+    -- Always switch to Macpyver split to safely clear it
+    api.nvim_set_current_win(win)
+    api.nvim_command("enew")
+    -- Set size as appropriate
+    if opts.split_type == "vertical" and opts.min_width then
+      api.nvim_win_set_width(win, opts.min_width)
+    elseif opts.split_type == "horizontal" and opts.min_height then
+      api.nvim_win_set_height(win, opts.min_height)
+    end
   else
-    vim.cmd("vsplit")
-    win = vim.api.nvim_get_current_win()
-    if opts.min_width then
-      vim.api.nvim_win_set_width(win, opts.min_width)
+    -- Create the split, focus is always on the new split now
+    if opts.split_type == "vertical" then
+      api.nvim_command("vsplit")
+    else
+      api.nvim_command("split")
+    end
+    win = api.nvim_get_current_win()
+    if opts.split_type == "vertical" and opts.min_width then
+      api.nvim_win_set_width(win, opts.min_width)
+    elseif opts.split_type == "horizontal" and opts.min_height then
+      api.nvim_win_set_height(win, opts.min_height)
     end
   end
+
+  -- Always create terminal in the Macpyver split
+  api.nvim_set_current_win(win)
   local shell = os.getenv("SHELL") or "/bin/sh"
-  vim.cmd("terminal " .. shell .. " -c " .. vim.fn.shellescape(cmd))
-  local bufnr = vim.api.nvim_get_current_buf()
-  core.state.term_bufnr = bufnr
+  api.nvim_command("terminal " .. shell .. " -c " .. vim.fn.shellescape(cmd))
+  local bufnr = api.nvim_get_current_buf()
+  require("macpyver.core").state.term_bufnr = bufnr
+
   if opts.autoscroll then
-    term.maybe_autoscroll(win, opts)
+    require("macpyver.term").maybe_autoscroll(win, opts)
   end
+
+  -- Restore focus if user does not want to follow Macpyver split
+  if opts.focus_on_run == false then
+    api.nvim_set_current_win(prev_win)
+  end
+
   return win
 end
 
 function Runner.run(opts, case_num)
   local api = vim.api
-  -- Validate: must be in a file buffer
   local file = api.nvim_buf_get_name(0)
   if not file or file == "" then
     vim.notify("Macpyver: No file open (or buffer not saved)!", vim.log.levels.ERROR)
@@ -58,7 +82,6 @@ function Runner.run(opts, case_num)
   local test_base = util.get_parent_dir(file)
   local positional = util.get_basename(file)
 
-  -- Check required opts
   for k, v in pairs({ config_path = opts.config_path, resources_path = opts.resources_path, output_root = opts.output_root }) do
     if not v or v == "" then
       vim.notify("Macpyver: Option '" .. k .. "' is missing!", vim.log.levels.ERROR)
@@ -71,13 +94,11 @@ function Runner.run(opts, case_num)
     cmd = cmd .. " --test-cases " .. tostring(case_num)
   end
 
-  -- Try to reuse a running split if present, otherwise create new
   local win = Runner.get_term_win()
   if win then
     local bufnr = api.nvim_win_get_buf(win)
     local job = vim.b.terminal_job_id or vim.t.terminal_job_id or 0
     if job ~= 0 and vim.fn.jobwait({ job }, 0)[1] == -1 then
-      -- Terminal is running: send Ctrl-C, clear, and run command
       api.nvim_set_current_win(win)
       api.nvim_chan_send(job, "\003\n")
       api.nvim_chan_send(job, "clear\n")
@@ -86,15 +107,12 @@ function Runner.run(opts, case_num)
         term.maybe_autoscroll(win, opts)
       end
     else
-      -- Terminal dead: open a new terminal buffer in same split
       Runner.open_term(cmd, opts, win)
     end
   else
-    -- No split: open new split and terminal
     Runner.open_term(cmd, opts, nil)
   end
 
-  -- Setup keymaps/autocmds on the current terminal buffer
   term.setup_autocmd_auto_close(core.state.term_bufnr, opts)
   term.close_if_only_window_left(core.state.term_bufnr)
   term.setup_term_keymaps(core.state.term_bufnr, opts)
