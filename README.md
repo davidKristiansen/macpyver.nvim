@@ -1,6 +1,6 @@
 # 🛠️ macpyver.nvim
 
-A Neovim plugin for YAML case running and workflow execution—Macpyver-style, right inside your editor.
+A Neovim plugin for running YAML test cases and workflows—Macpyver-style.
 
 Created by David Kristiansen.
 
@@ -8,35 +8,31 @@ Created by David Kristiansen.
 
 ## Features
 
-- Run the entire YAML workflow from your current buffer, in a split terminal
-- Instantly run the specific YAML case (list item) under your cursor
-- Reuses or opens a split terminal as needed, respecting your split/focus preferences
-- Choose vertical or horizontal splits (follows your \:set splitright / \:set splitbelow)
-- Control focus behavior when running jobs
-- Keymaps for closing or interrupting jobs in the Macpyver terminal
+- Run the current YAML workflow in a split terminal
+- Instantly run just the YAML test case under your cursor
+- Prompt and run any case by input
+- Uses a reusable, named split terminal (minimal prompt, no shell config)
+- Choose split direction and focus: "top", "bottom", "left", "right"
+- Buffer-local keymaps for closing (`q`) or clearing (`c`) the Macpyver terminal, in both normal and terminal mode
 
 ---
 
 ## Installation
 
-Use your favorite plugin manager:
-
 lazy.nvim
 
-```
+```lua
 {
-  "davidKristiansen/macpyver.nvim",
-  config = function()
-    require("macpyver").setup({
-      -- your options here (see below)
-    })
-  end,
+"davidKristiansen/macpyver.nvim",
+  opts = {
+    -- Your configuration options (see below)
+  },
 }
 ```
 
 packer.nvim
 
-```
+```lua
 use({
   "davidKristiansen/macpyver.nvim",
   config = function()
@@ -51,74 +47,64 @@ use({
 
 ## Usage
 
-Run the whole workflow in a split terminal:
+- Run the whole YAML workflow:
+  :Macpyver run
 
-```
-:MacpyverRun
-```
+- Run the test case under the cursor (YAML `-` item):
+  :Macpyver runcase
 
-Run the test case under the cursor (YAML `-` list item):
+- Prompt for a case number or name, then run:
+  :Macpyver runcaseinput
 
-```
-:MacpyverCase
-```
+Tab-completion is available for all subcommands.
 
-Default keymaps in the Macpyver split:
+---
 
-- q: Close the split (or quit Neovim if last window)
-- c: Send Ctrl-C to the running job
+## Split Terminal Keymaps
+
+When the Macpyver terminal split is focused:
+
+- q — Close the split terminal (buffer-local)
+- c — Clear the terminal output (buffer-local)
+
+Both mappings work in normal and terminal mode.
+You can customize or disable these in your options.
 
 ---
 
 ## Configuration
 
-Call `setup()` in your config with any of these options:
+Pass options as opts = { ... } in your plugin spec (or to setup()):
 
-```
-require("macpyver").setup({
-  config_path    = "/path/to/config.yaml",
+```lua
+opts = {
+  config_path = "/path/to/config.yaml",
   resources_path = "/path/to/resources.yaml",
-  output_root    = "/tmp/output/",
-  split_type     = "vertical",   -- or "horizontal" (follows your splitright/splitbelow)
-  min_width      = 50,           -- minimum width for vertical splits
-  min_height     = 12,           -- minimum height for horizontal splits
-  focus_on_run   = true,         -- whether to move focus to the Macpyver split (default: true)
-  auto_close     = false,
-  autoscroll     = true,
-  keymaps        = {
-    close = "q",
-    ctrlc = "c",
+  output_root = "/tmp/output/",
+  split_dir = "right", -- "top", "bottom", "left", "right" (default: "bottom")
+  min_width = 50, -- for vertical splits
+  min_height = 12, -- for horizontal splits
+  focus_on_run = true, -- focus terminal when running (default: true)
+  auto_close = false,
+  autoscroll = true,
+  keymaps = {
+    close = "q", -- close the terminal split
+    clear = "c", -- clear the terminal output
   },
-})
+}
 ```
 
-- split_type: "vertical" or "horizontal". Lets your own splitright and splitbelow decide which side.
-- min_width: Minimum width of split for "vertical".
-- min_height: Minimum height of split for "horizontal".
-- focus_on_run: If false, your cursor stays in your working buffer when running Macpyver.
-
-All fields are optional, but you'll want to set the paths.
-
----
-
-## Why Macpyver?
-
-Because sometimes YAML needs a paperclip and a split terminal.
+All fields are optional—set only what you need.
 
 ---
 
 ## Contributing
 
-PRs, issues, and workflow hacks welcome.
-
-See `lua/macpyver/` for the full code.
+PRs and issues are welcome.
+See lua/macpyver/ for all code and API docs.
 
 ---
 
 ## License
 
 MIT — © 2024 David Kristiansen
-
----
-
-Made for Neovim, because your terminal deserves more.

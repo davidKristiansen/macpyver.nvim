@@ -1,13 +1,11 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright David Kristiansen
 
-local runner = require("macpyver.runner")
-
-local Case = {}
+local M = {}
 
 --- Find the current case number under the cursor in a YAML file.
 -- Returns the 1-based index of the case, or nil if not found.
-function Case.find_case_num()
+function M.find_case_num()
   local api = vim.api
   local bufnr = api.nvim_get_current_buf()
   local total_lines = api.nvim_buf_line_count(bufnr)
@@ -73,17 +71,4 @@ function Case.find_case_num()
   end
 end
 
---- Runs the detected test case (YAML list item) under cursor.
--- Notifies user if no case could be found.
-function Case.run_case(opts)
-  local case_num, err = Case.find_case_num()
-  if not case_num then
-    vim.notify("Macpyver: " .. (err or "Could not detect test case under cursor!"),
-      vim.log.levels.ERROR)
-    return
-  end
-  vim.notify("Macpyver: Running case #" .. tostring(case_num))
-  runner.run(opts, case_num)
-end
-
-return Case
+return M
