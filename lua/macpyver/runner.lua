@@ -9,24 +9,38 @@ local M = {}
 
 ---Builds the CLI command for macpyver based on config and opts.
 ---@param file string Path to the YAML file to run
----@param opts? table  # opts.macpyver (table) will be converted to CLI args; other keys configure job/panel.
----@return string[] cmdlist List of arguments for jobstart ({"macpyver", ...flags, file})
+---@param opts? table
+---@return string[] cmdlist
 local function build_command(file, opts)
   opts = opts or {}
   local cfg = config.merge_user_config(vim.g.macpyver_config or {})
-  local cwd = vim.fn.getcwd()
-  local rel_file = vim.fn.fnamemodify(file, ":.")
 
-  -- macpyver_run_args comes from config.macpyver and opts.macpyver (opts takes precedence)
+  local abs_file = vim.fn.fnamemodify(file, ":p")
+  local cwd = vim.fn.getcwd()
+
+  local file_arg
+  local test_base_path
+
+  if vim.startswith(abs_file, cwd .. "/") then
+    -- File is inside cwd: make path relative and use cwd as base
+    file_arg = vim.fn.fnamemodify(abs_file, ":.")
+    test_base_path = cwd
+  else
+    -- File is outside cwd: use only the filename and its parent as base
+    file_arg = vim.fn.fnamemodify(abs_file, ":t") -- just filename
+    test_base_path = vim.fn.fnamemodify(abs_file, ":h")
+  end
+
   local macpyver_run_args = vim.tbl_deep_extend("force", {}, cfg.macpyver or {}, opts.macpyver or {})
-  macpyver_run_args.test_base_path = cwd -- Always set test_base_path to cwd
+  macpyver_run_args.test_base_path = test_base_path
 
   local cli_args = util.table_to_cli_args(macpyver_run_args)
   local cmd = { "macpyver" }
   vim.list_extend(cmd, cli_args)
-  table.insert(cmd, rel_file)
+  table.insert(cmd, file_arg)
   return cmd
 end
+
 
 ---Runs the macpyver CLI job, piping output to the appropriate panel.
 ---@param file string Path to YAML file to run
