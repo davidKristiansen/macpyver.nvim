@@ -6,17 +6,6 @@
 local panels = {} ---@type table<string, { bufnr: integer, winid?: integer }>
 local M = {}
 
----@class MacpyverPanelKeymaps
----@field clear? string   -- Key to clear panel output
----@field close? string   -- Key to close the panel window
-
----@class MacpyverPanelOpts
----@field split_dir? "top"|"bottom"|"left"|"right"
----@field size? integer
----@field autoscroll? boolean
----@field focus? boolean
----@field keymaps? MacpyverPanelKeymaps
-
 ---Set up buffer-local keymaps for panel actions.
 ---@param bufnr integer
 ---@param name string
@@ -88,6 +77,7 @@ function M.show(name, opts)
     vim.notify("[macpyver] No panel named '" .. name .. "'", vim.log.levels.WARN)
     return nil
   end
+  -- If already visible, just focus (unless focus=false)
   if panel.winid and vim.api.nvim_win_is_valid(panel.winid) then
     if opts.focus ~= false then
       vim.api.nvim_set_current_win(panel.winid)
@@ -105,6 +95,7 @@ function M.show(name, opts)
     vim.api.nvim_set_current_win(prev_win)
   end
   if opts.autoscroll then
+    -- Move cursor to end of buffer
     vim.cmd("normal! G")
   end
   return winid

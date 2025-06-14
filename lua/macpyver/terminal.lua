@@ -1,10 +1,13 @@
 -- SPDX-License-Identifier: MIT
 -- Copyright David Kristiansen
 
-local terminals = {} -- { [name]: { bufnr = int, winid = int } }
+local terminals = {} ---@type table<string, { bufnr: integer, winid: integer }>
 
 local M = {}
 
+---Open a split window in the requested direction and set size.
+---@param split_dir? "top"|"bottom"|"left"|"right"
+---@param size? integer
 local function open_split(split_dir, size)
   split_dir = split_dir or "bottom"
   if split_dir == "top" then
@@ -25,6 +28,7 @@ local function open_split(split_dir, size)
   end
 end
 
+---Open (or reuse) a named terminal in a split window.
 ---@param name string
 ---@param split_dir? "top"|"bottom"|"left"|"right"
 ---@param size? integer
@@ -33,7 +37,7 @@ end
 ---@param autoscroll? boolean
 ---@return integer bufnr, integer winid
 function M.open(name, split_dir, size, focus, keymaps, autoscroll)
-  -- Reuse existing terminal if valid
+  -- If the terminal is already open, reuse it.
   local term = terminals[name]
   if term and vim.api.nvim_buf_is_valid(term.bufnr) and vim.api.nvim_win_is_valid(term.winid) then
     if focus ~= false then
@@ -42,40 +46,36 @@ function M.open(name, split_dir, size, focus, keymaps, autoscroll)
     return term.bufnr, term.winid
   end
 
-  -- Open the split
+  -- Open the split in the requested direction.
   local prev_win = vim.api.nvim_get_current_win()
   open_split(split_dir, size)
   local winid = vim.api.nvim_get_current_win()
 
-  -- Open a "dumb" terminal (no prompt)
+  -- Start a "dumb" bash terminal (no prompt, minimal environment).
   vim.cmd("terminal env PS1= bash --noprofile --norc")
   local bufnr = vim.api.nvim_get_current_buf()
 
-  -- Directly register keymaps (normal mode and terminal mode)
+  -- Buffer-local keymaps for closing/clearing the terminal (both normal and terminal modes).
   if keymaps and (keymaps.close or keymaps.clear) then
     if keymaps.close then
-      -- Normal mode: close
       vim.api.nvim_buf_set_keymap(bufnr, "n", keymaps.close,
         ("<Cmd>lua require('macpyver.terminal').close('%s')<CR>"):format(name),
         { noremap = true, silent = true })
-      -- Terminal mode: close
       vim.api.nvim_buf_set_keymap(bufnr, "t", keymaps.close,
         ([[<C-\><C-n><Cmd>lua require('macpyver.terminal').close('%s')<CR>]]):format(name),
         { noremap = true, silent = true })
     end
     if keymaps.clear then
-      -- Normal mode: clear
       vim.api.nvim_buf_set_keymap(bufnr, "n", keymaps.clear,
         ("<Cmd>lua require('macpyver.terminal').clear('%s')<CR>"):format(name),
         { noremap = true, silent = true })
-      -- Terminal mode: clear
       vim.api.nvim_buf_set_keymap(bufnr, "t", keymaps.clear,
         ([[<C-\><C-n><Cmd>lua require('macpyver.terminal').clear('%s')<CR>]]):format(name),
         { noremap = true, silent = true })
     end
   end
 
-
+  -- Optional: auto-scroll terminal to bottom when output changes.
   if autoscroll then
     vim.api.nvim_create_autocmd({ "TermEnter", "TermClose", "TextChanged", "BufWinEnter" }, {
       buffer = bufnr,
@@ -90,6 +90,7 @@ function M.open(name, split_dir, size, focus, keymaps, autoscroll)
 
   terminals[name] = { bufnr = bufnr, winid = winid }
 
+  -- Restore previous window if focus is false.
   if focus == false then
     vim.api.nvim_set_current_win(prev_win)
   end
@@ -97,6 +98,7 @@ function M.open(name, split_dir, size, focus, keymaps, autoscroll)
   return bufnr, winid
 end
 
+---Send a command to the named terminal.
 ---@param name string
 ---@param cmd string
 function M.send(name, cmd)
@@ -109,21 +111,24 @@ function M.send(name, cmd)
     vim.notify("[macpyver] No running shell in terminal '" .. name .. "' (cannot send command)", vim.log.levels.WARN)
     return
   end
+  -- 'reset' first ensures we get a clean shell prompt; then run user command.
   local safe_cmd = string.format("reset; %s", cmd)
   vim.api.nvim_chan_send(job_id, safe_cmd .. "\n")
 end
 
+---Clear a terminal's scrollback and screen.
 ---@param name string
 function M.clear(name)
   local term = terminals[name]
   if term and vim.api.nvim_buf_is_valid(term.bufnr) then
     vim.api.nvim_buf_set_lines(term.bufnr, 0, -1, false, {})
-    -- This doesn't actually clear the terminal screen—just the buffer's scrollback.
-    -- To actually clear the visible terminal, send the clear sequence:
+    -- Actually clear the visible terminal.
     M.send(name, "clear")
   end
 end
 
+---Close the terminal window, quitting Neovim if it's the last window.
+---@param name string
 function M.close(name)
   local term = terminals[name]
   if not term then
@@ -131,27 +136,26 @@ function M.close(name)
     return
   end
 
-  -- Step 1: If in terminal mode, leave it first (defer everything else)
+  -- Leave terminal mode before closing.
   if vim.api.nvim_get_mode().mode == "t" then
     vim.api.nvim_feedkeys(
       vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true),
       "n",
       false
     )
-    -- Schedule the actual close for after mode switch
     vim.schedule(function()
       M.close(name)
     end)
     return
   end
 
-  -- Step 2: Proceed with closure
   if not vim.api.nvim_win_is_valid(term.winid) then
     vim.notify(("[macpyver] Terminal window for '%s' is not valid (already closed?)"):format(name), vim.log.levels.WARN)
     terminals[name] = nil
     return
   end
 
+  -- Attempt graceful job termination (Ctrl-C, exit, jobstop)
   local job_id = M.get_job_id(name)
   if job_id then
     pcall(vim.api.nvim_chan_send, job_id, "\003")
@@ -159,6 +163,7 @@ function M.close(name)
     pcall(vim.fn.jobstop, job_id)
   end
 
+  -- If this is the last window, quit Neovim. Otherwise, just close the split.
   if vim.api.nvim_win_is_valid(term.winid) then
     if #vim.api.nvim_list_wins() == 1 then
       pcall(vim.cmd, "qa!")
@@ -169,6 +174,9 @@ function M.close(name)
   terminals[name] = nil
 end
 
+---Get the terminal job id for a given name.
+---@param name string
+---@return integer|nil
 function M.get_job_id(name)
   local term = terminals[name]
   if not term or not vim.api.nvim_buf_is_valid(term.bufnr) then
@@ -181,6 +189,8 @@ function M.get_job_id(name)
   return nil
 end
 
+---Send Ctrl-C to the terminal job.
+---@param name string
 function M.ctrlc(name)
   local job_id = M.get_job_id(name)
   if job_id then
