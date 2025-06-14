@@ -20,7 +20,17 @@ function M.run(name, cmd, opts)
   local size = opts.size or 15
   local focus = opts.focus
   local keymaps = opts.keymaps
-  local bufnr, winid = terminal.open(name, split_dir, size, focus, keymaps)
+  local autoscroll = opts.autoscroll
+
+
+  local bufnr, winid = terminal.open(
+    name,
+    split_dir,
+    size,
+    focus,
+    keymaps,
+    autoscroll
+  )
   -- Turn table command into string if needed
   local cmd_str = type(cmd) == "table" and table.concat(cmd, " ") or cmd
   terminal.send(name, cmd_str)

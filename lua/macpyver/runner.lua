@@ -7,9 +7,6 @@ local util = require("macpyver.util")
 
 local M = {}
 
-local util = require("macpyver.util")
-local config = require("macpyver.config")
-
 ---Builds the CLI command for macpyver based on config and opts.
 ---@param file string
 ---@param opts? table  -- opts.macpyver should be the table for CLI args

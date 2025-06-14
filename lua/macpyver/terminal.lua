@@ -30,8 +30,9 @@ end
 ---@param size? integer
 ---@param focus? boolean
 ---@param keymaps? table { close?: string, clear?: string }
+---@param autoscroll? boolean
 ---@return integer bufnr, integer winid
-function M.open(name, split_dir, size, focus, keymaps)
+function M.open(name, split_dir, size, focus, keymaps, autoscroll)
   -- Reuse existing terminal if valid
   local term = terminals[name]
   if term and vim.api.nvim_buf_is_valid(term.bufnr) and vim.api.nvim_win_is_valid(term.winid) then
@@ -72,6 +73,19 @@ function M.open(name, split_dir, size, focus, keymaps)
         ([[<C-\><C-n><Cmd>lua require('macpyver.terminal').clear('%s')<CR>]]):format(name),
         { noremap = true, silent = true })
     end
+  end
+
+
+  if autoscroll then
+    vim.api.nvim_create_autocmd({ "TermEnter", "TermClose", "TextChanged", "BufWinEnter" }, {
+      buffer = bufnr,
+      callback = function()
+        if vim.api.nvim_win_is_valid(winid) then
+          vim.api.nvim_win_set_cursor(winid, { vim.api.nvim_buf_line_count(bufnr), 0 })
+        end
+      end,
+      desc = "[macpyver] Autoscroll on output",
+    })
   end
 
   terminals[name] = { bufnr = bufnr, winid = winid }
@@ -116,27 +130,43 @@ function M.close(name)
     vim.notify(("[macpyver] No terminal named '%s'"):format(name), vim.log.levels.INFO)
     return
   end
+
+  -- Step 1: If in terminal mode, leave it first (defer everything else)
+  if vim.api.nvim_get_mode().mode == "t" then
+    vim.api.nvim_feedkeys(
+      vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true),
+      "n",
+      false
+    )
+    -- Schedule the actual close for after mode switch
+    vim.schedule(function()
+      M.close(name)
+    end)
+    return
+  end
+
+  -- Step 2: Proceed with closure
   if not vim.api.nvim_win_is_valid(term.winid) then
     vim.notify(("[macpyver] Terminal window for '%s' is not valid (already closed?)"):format(name), vim.log.levels.WARN)
     terminals[name] = nil
     return
   end
+
   local job_id = M.get_job_id(name)
   if job_id then
-    -- Try to exit shell gracefully first
     pcall(vim.api.nvim_chan_send, job_id, "\003")
     pcall(vim.api.nvim_chan_send, job_id, "exit\n")
-
-    -- Optionally, force kill (uncomment if desired)
-    vim.fn.jobstop(job_id)
+    pcall(vim.fn.jobstop, job_id)
   end
-  -- Give shell a moment to clean up, then close window
-  vim.defer_fn(function()
-    if vim.api.nvim_win_is_valid(term.winid) then
-      vim.api.nvim_win_close(term.winid, true)
+
+  if vim.api.nvim_win_is_valid(term.winid) then
+    if #vim.api.nvim_list_wins() == 1 then
+      pcall(vim.cmd, "qa!")
+    else
+      pcall(vim.api.nvim_win_close, term.winid, true)
     end
-    terminals[name] = nil
-  end, 80)
+  end
+  terminals[name] = nil
 end
 
 function M.get_job_id(name)
