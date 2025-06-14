@@ -43,6 +43,32 @@ use({
 })
 ```
 
+example lazy spec
+
+```lua
+{
+  "davidKristiansen/macpyver.nvim",
+  cmd = { "Macpyver" },
+  opts = {
+    macpyver = {
+      config      = os.getenv("WORKSPACE") .. "/00.Environment/config/macpyver/macpyver.yaml",
+      resources   = os.getenv("WORKSPACE") .. "/00.Environment/config/macpyver/fpga_resources.yaml",
+      output_root = "/tmp/macpyver.out/",
+    },
+    size       = 90,
+    autoscroll = true,
+    focus      = false,
+    split_dir  = "right",
+    keymaps    = { close = "q", clear = "c" },
+  },
+  keys = {
+    { "<leader>mr", "<cmd>Macpyver run<cr>",          desc = "Macpyver: Run workflow" },
+    { "<leader>mc", "<cmd>Macpyver runcase<cr>",      desc = "Macpyver: Run current case" },
+    { "<leader>mt", "<cmd>Macpyver runcaseinput<cr>", desc = "Macpyver: Run case from input" },
+  },
+},
+```
+
 ---
 
 ## Usage
@@ -84,8 +110,8 @@ Pass options as opts = { ... } in your plugin spec (or to setup()):
 ```lua
 opts = {
   macpyver ={
-    config_path = "/path/to/config.yaml",
-    resources_path = "/path/to/resources.yaml",
+    config = "/path/to/config.yaml",
+    resources = "/path/to/resources.yaml",
     output_root = "/tmp/output/",
   },
   split_dir = "right", -- "top", "bottom", "left", "right" (default: "bottom")
