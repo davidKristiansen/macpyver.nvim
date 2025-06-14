@@ -3,12 +3,16 @@
 
 local config = require("macpyver.config")
 local job = require("macpyver.job")
+local util = require("macpyver.util")
 
 local M = {}
 
+local util = require("macpyver.util")
+local config = require("macpyver.config")
+
 ---Builds the CLI command for macpyver based on config and opts.
 ---@param file string
----@param opts? MacpyverConfig
+---@param opts? table  -- opts.macpyver should be the table for CLI args
 ---@return string[]
 local function build_command(file, opts)
   opts = opts or {}
@@ -16,25 +20,21 @@ local function build_command(file, opts)
   local cwd = vim.fn.getcwd()
   local rel_file = vim.fn.fnamemodify(file, ":.")
 
-  local args = {
-    "macpyver",
-    "--config", opts.config_path or cfg.config_path or "",
-    "--resources", opts.resources_path or cfg.resources_path or "",
-    "--output-root", opts.output_root or cfg.output_root or "",
-    "--test-base-path", cwd,
-    rel_file,
-  }
-  if opts.test_case then
-    table.insert(args, "--test-case")
-    table.insert(args, opts.test_case)
-  end
-  -- Remove empty args
-  local filtered = {}
-  for _, arg in ipairs(args) do
-    if arg ~= "" then table.insert(filtered, arg) end
-  end
-  return filtered
+  -- Collect args: opts.macpyver or fallback to cfg.macpyver or {}
+  local macpyver_run_args = vim.tbl_deep_extend("force", {}, cfg.macpyver or {}, opts.macpyver or {})
+  -- Always ensure test_base_path is set to cwd (override any config)
+  macpyver_run_args.test_base_path = cwd
+
+  -- Convert to CLI args
+  local cli_args = util.table_to_cli_args(macpyver_run_args)
+
+  -- Compose command: {"macpyver", unpack(cli_args), rel_file}
+  local cmd = { "macpyver" }
+  vim.list_extend(cmd, cli_args)
+  table.insert(cmd, rel_file)
+  return cmd
 end
+
 
 
 ---Run the macpyver CLI job, piping output to the appropriate panel.
@@ -45,6 +45,7 @@ function M.run(file, opts)
 
   local panel_name = opts.job_panel or "macpyver"
   local cmd = build_command(file, opts)
+  vim.notify(vim.inspect(cmd))
   job.run(panel_name, cmd, {
     split_dir = opts.split_dir,
     size = opts.size,

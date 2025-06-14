@@ -128,7 +128,7 @@ function M.close(name)
     pcall(vim.api.nvim_chan_send, job_id, "exit\n")
 
     -- Optionally, force kill (uncomment if desired)
-    -- vim.fn.jobstop(job_id)
+    vim.fn.jobstop(job_id)
   end
   -- Give shell a moment to clean up, then close window
   vim.defer_fn(function()

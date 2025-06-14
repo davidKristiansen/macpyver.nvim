@@ -74,17 +74,23 @@ You can customize or disable these in your options.
 
 ## Configuration
 
+**Note:**
+All keys inside the `macpyver` table in your options are automatically converted to CLI arguments for the `macpyver` executable.
+For example, `{ macpyver = { config_path = "/foo/bar.yaml", debug = true } }` becomes `--config-path /foo/bar.yaml --debug` in the command line.
+No need to manually specify flags—just add or remove keys as needed!
+
 Pass options as opts = { ... } in your plugin spec (or to setup()):
 
 ```lua
 opts = {
-  config_path = "/path/to/config.yaml",
-  resources_path = "/path/to/resources.yaml",
-  output_root = "/tmp/output/",
+  macpyver ={
+    config_path = "/path/to/config.yaml",
+    resources_path = "/path/to/resources.yaml",
+    output_root = "/tmp/output/",
+  },
   split_dir = "right", -- "top", "bottom", "left", "right" (default: "bottom")
-  min_width = 50, -- for vertical splits
-  min_height = 12, -- for horizontal splits
-  focus_on_run = true, -- focus terminal when running (default: true)
+  size = 50, -- for vertical and horizontal splits
+  focus = true, -- focus terminal when running (default: true)
   auto_close = false,
   autoscroll = true,
   keymaps = {

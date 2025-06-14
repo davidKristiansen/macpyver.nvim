@@ -4,10 +4,12 @@
 -- Default config for macpyver.nvim
 
 
+
 local config = {
-  config_path = "",
-  resources_path = "",
-  output_path = "",
+  -- config_path = "",
+  -- resources_path = "",
+  -- output_path = "",
+  macpyver = {},
   split_dir = "right", -- "top", "bottom", "left", or "right"
   size = 90,           -- Height (lines) for horizontal; width (cols) for vertical
   autoscroll = true,
