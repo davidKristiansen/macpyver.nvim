@@ -45,7 +45,6 @@ function M.run(file, opts)
 
   local panel_name = opts.job_panel or "macpyver"
   local cmd = build_command(file, opts)
-  vim.notify(vim.inspect(cmd))
   job.run(panel_name, cmd, {
     split_dir = opts.split_dir,
     size = opts.size,
