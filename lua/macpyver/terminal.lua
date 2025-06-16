@@ -55,6 +55,10 @@ function M.open(name, split_dir, size, focus, keymaps, autoscroll)
   vim.cmd("terminal env PS1= bash --noprofile --norc")
   local bufnr = vim.api.nvim_get_current_buf()
 
+
+  -- Disable shell echo to avoid duplicated commands.
+  vim.api.nvim_chan_send(vim.b.terminal_job_id, "stty -echo\n")
+
   -- Buffer-local keymaps for closing/clearing the terminal (both normal and terminal modes).
   if keymaps and (keymaps.close or keymaps.clear) then
     if keymaps.close then
@@ -125,7 +129,7 @@ function M.send(name, cmd)
   vim.defer_fn(function()
     local safe_cmd = quote_all_args(cmd)
     vim.api.nvim_chan_send(job_id, safe_cmd .. "\n")
-  end, 100)
+  end, 300)
 end
 
 ---Clear a terminal's scrollback and screen.
