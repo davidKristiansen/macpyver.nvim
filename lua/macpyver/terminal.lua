@@ -98,6 +98,14 @@ function M.open(name, split_dir, size, focus, keymaps, autoscroll)
   return bufnr, winid
 end
 
+local function quote_all_args(cmd)
+  local args = {}
+  for word in vim.gsplit(cmd, "%s+") do
+    table.insert(args, string.format("%q", word))
+  end
+  return table.concat(args, " ")
+end
+
 ---Send a command to the named terminal.
 ---@param name string
 ---@param cmd string
@@ -108,12 +116,16 @@ function M.send(name, cmd)
   end
   local job_id = M.get_job_id(name)
   if not job_id or type(job_id) ~= "number" then
-    vim.notify("[macpyver] No running shell in terminal '" .. name .. "' (cannot send command)", vim.log.levels.WARN)
+    vim.notify("[macpyver] No running shell in terminal '" .. name .. "'", vim.log.levels.WARN)
     return
   end
-  -- 'reset' first ensures we get a clean shell prompt; then run user command.
-  local safe_cmd = string.format("reset; %s", cmd)
-  vim.api.nvim_chan_send(job_id, safe_cmd .. "\n")
+
+  -- Just send raw command after reset
+  vim.api.nvim_chan_send(job_id, "reset\n")
+  vim.defer_fn(function()
+    local safe_cmd = quote_all_args(cmd)
+    vim.api.nvim_chan_send(job_id, safe_cmd .. "\n")
+  end, 100)
 end
 
 ---Clear a terminal's scrollback and screen.
