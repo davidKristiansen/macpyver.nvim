@@ -124,8 +124,7 @@ function M.send(name, cmd)
     return
   end
 
-  -- Just send raw command after reset
-  vim.api.nvim_chan_send(job_id, "reset\n")
+  vim.api.nvim_chan_send(job_id, " clear\n")
   vim.defer_fn(function()
     local safe_cmd = quote_all_args(cmd)
     vim.api.nvim_chan_send(job_id, safe_cmd .. "\n")
