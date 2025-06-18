@@ -44,7 +44,7 @@ subcommands.runcase = {
       return
     end
     -- Always cast case_num to string for runner compatibility
-    runner.run(file, { macpyver = { test_case = tostring(case_num) } })
+    runner.run(file, { macpyver = { test_cases = tostring(case_num) } })
   end,
 }
 
@@ -62,7 +62,7 @@ subcommands.runcaseinput = {
     }, function(input)
       if input and #input > 0 then
         last_case_input = input
-        runner.run(file, { macpyver = { test_case = input } })
+        runner.run(file, { macpyver = { test_cases = input } })
       else
         vim.notify("[macpyver] Cancelled.", vim.log.levels.INFO)
       end
